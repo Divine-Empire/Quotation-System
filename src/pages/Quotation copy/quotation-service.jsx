@@ -1,18 +1,92 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { DownloadIcon, SaveIcon, ShareIcon } from "../../components/Icons"
 import image1 from "../../assests/WhatsApp Image 2025-05-14 at 4.11.43 PM.jpeg"
 import imageform from "../../assests/WhatsApp Image 2025-05-14 at 4.11.54 PM.jpeg"
 import QuotationHeader from "./quotation-header"
 import QuotationForm from "./quotation-form"
 import QuotationPreview from "./quotation-preview"
 import { generatePDFFromData } from "./pdf-generator"
-import { getNextQuotationNumber } from "./quotation-service"
 import { useQuotationData } from "./use-quotation-data"
 
-const Quotation = ({ initialData = null }) => {
-  const [currentStep, setCurrentStep] = useState("form")
-  const [quotationData, setQuotationData] = useState(null)
+export const getNextQuotationNumber = async (companyPrefix = "NBD") => {
+  const scriptUrl =
+    "https://script.google.com/macros/s/AKfycbzTPj_x_0Sh6uCNnMDi-KlwVzkGV3nC4tRF6kGUNA1vXG0Ykx4Lq6ccR9kYv6Cst108aQ/exec"
+
+  try {
+    const params = {
+      sheetName: "Make Quotation",
+      action: "getNextQuotationNumber",
+      companyPrefix: companyPrefix, // Pass the dynamic prefix
+    }
+
+    const urlParams = new URLSearchParams()
+    for (const key in params) {
+      urlParams.append(key, params[key])
+    }
+
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: urlParams,
+    })
+
+    const result = await response.json()
+
+    if (result.success) {
+      return result.nextQuotationNumber
+    } else {
+      return `${companyPrefix}-001`
+    }
+  } catch (error) {
+    console.error("Error getting next quotation number:", error)
+    return `${companyPrefix}-001`
+  }
+}
+
+// NEW: Function to get company prefix from FMS sheet
+export const getCompanyPrefix = async (companyName) => {
+  const scriptUrl =
+    "https://script.google.com/macros/s/AKfycbzTPj_x_0Sh6uCNnMDi-KlwVzkGV3nC4tRF6kGUNA1vXG0Ykx4Lq6ccR9kYv6Cst108aQ/exec"
+
+  try {
+    const params = {
+      sheetName: "FMS",
+      action: "getCompanyPrefix",
+      companyName: companyName,
+    }
+
+    const urlParams = new URLSearchParams()
+    for (const key in params) {
+      urlParams.append(key, params[key])
+    }
+
+    const response = await fetch(scriptUrl, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/x-www-form-urlencoded",
+      },
+      body: urlParams,
+    })
+
+    const result = await response.json()
+
+    if (result.success && result.prefix) {
+      return result.prefix
+    } else {
+      return "NBD" // Default fallback
+    }
+  } catch (error) {
+    console.error("Error getting company prefix:", error)
+    return "NBD" // Default fallback
+  }
+}
+
+function Quotation() {
+  const [activeTab, setActiveTab] = useState("edit")
   const [isGenerating, setIsGenerating] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
   const [quotationLink, setQuotationLink] = useState("")
@@ -24,8 +98,14 @@ const Quotation = ({ initialData = null }) => {
   const [specialDiscount, setSpecialDiscount] = useState(0)
   const [selectedReferences, setSelectedReferences] = useState([])
 
+  // Check if we're in view mode
+  const params = new URLSearchParams(window.location.search)
+  const isViewMode = params.has("view")
+
   // Use the custom hook for quotation data
   const {
+    quotationData,
+    setQuotationData,
     handleInputChange,
     handleItemChange,
     handleFlatDiscountChange,
@@ -47,49 +127,55 @@ const Quotation = ({ initialData = null }) => {
     handleSpecialDiscountChange(discount)
   }
 
-  // Load initial data if provided
-  useEffect(() => {
-    if (initialData) {
-      console.log("Loading initial data:", initialData)
-
-      // Set the quotation data from the passed initial data
-      setQuotationData(initialData)
-
-      // Set special discount if available
-      if (initialData.specialDiscount) {
-        setSpecialDiscount(initialData.specialDiscount)
-      }
-
-      // Set selected references if available
-      if (initialData.consignorName) {
-        const references = initialData.consignorName
-          .split(",")
-          .map((r) => r.trim())
-          .filter((r) => r)
-        setSelectedReferences(references)
-      }
-
-      // Switch to preview tab when viewing existing quotation
-      setCurrentStep("preview")
-    }
-  }, [initialData])
-
   // Fetch existing quotations when component mounts or when revising
   useEffect(() => {
     const fetchExistingQuotations = async () => {
       try {
         console.log("Fetching existing quotations...")
+
+        // Get current user's company name from localStorage
+        const getCurrentUserCompany = () => {
+          try {
+            const userData = localStorage.getItem("userData")
+            if (userData) {
+              const user = JSON.parse(userData)
+              return user.companyName || user.company || null
+            }
+            return null
+          } catch (error) {
+            console.error("Error getting user company:", error)
+            return null
+          }
+        }
+
+        const userCompany = getCurrentUserCompany()
+        console.log("Current user company:", userCompany)
+
         const scriptUrl =
           "https://script.google.com/macros/s/AKfycbzTPj_x_0Sh6uCNnMDi-KlwVzkGV3nC4tRF6kGUNA1vXG0Ykx4Lq6ccR9kYv6Cst108aQ/exec"
+
+        // If no user company, fetch all quotations instead of filtered ones
+        const params = {
+          sheetName: "Make Quotation",
+          action: userCompany ? "getFilteredQuotationNumbers" : "getQuotationNumbers",
+        }
+
+        // Only add userCompany if it exists
+        if (userCompany) {
+          params.userCompany = userCompany
+        }
+
+        const urlParams = new URLSearchParams()
+        for (const key in params) {
+          urlParams.append(key, params[key])
+        }
+
         const response = await fetch(scriptUrl, {
           method: "POST",
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
           },
-          body: new URLSearchParams({
-            sheetName: "Make Quotation",
-            action: "getQuotationNumbers",
-          }),
+          body: urlParams,
         })
 
         const result = await response.json()
@@ -97,6 +183,9 @@ const Quotation = ({ initialData = null }) => {
 
         if (result.success && Array.isArray(result.quotationNumbers)) {
           setExistingQuotations(result.quotationNumbers)
+          console.log(
+            `Found ${result.quotationNumbers.length} quotations${userCompany ? ` for company: ${userCompany}` : " (all quotations)"}`,
+          )
         } else {
           console.error("Invalid response format:", result)
           setExistingQuotations([])
@@ -107,33 +196,48 @@ const Quotation = ({ initialData = null }) => {
       }
     }
 
-    if (!initialData) {
-      fetchExistingQuotations()
-    }
+    fetchExistingQuotations()
 
     if (isRevising) {
       fetchExistingQuotations()
     }
-  }, [isRevising, initialData])
+  }, [isRevising])
 
-  // Initialize quotation number only if no initial data
+  // Initialize quotation number
   useEffect(() => {
-    if (!initialData) {
-      const initializeQuotationNumber = async () => {
+    const initializeQuotationNumber = async () => {
+      try {
+        const nextQuotationNumber = await getNextQuotationNumber()
+        setQuotationData((prev) => ({
+          ...prev,
+          quotationNo: nextQuotationNumber,
+        }))
+      } catch (error) {
+        console.error("Error initializing quotation number:", error)
+      }
+    }
+
+    initializeQuotationNumber()
+  }, [setQuotationData])
+
+  // Load quotation data from URL if in view mode
+  useEffect(() => {
+    const viewId = params.get("view")
+
+    if (viewId) {
+      const savedQuotation = localStorage.getItem(viewId)
+
+      if (savedQuotation) {
         try {
-          const nextQuotationNumber = await getNextQuotationNumber()
-          setQuotationData((prev) => ({
-            ...prev,
-            quotationNo: nextQuotationNumber,
-          }))
+          const parsedData = JSON.parse(savedQuotation)
+          setQuotationData(parsedData)
+          setActiveTab("preview")
         } catch (error) {
-          console.error("Error initializing quotation number:", error)
+          console.error("Error loading quotation data:", error)
         }
       }
-
-      initializeQuotationNumber()
     }
-  }, [initialData])
+  }, [setQuotationData])
 
   const toggleRevising = () => {
     const newIsRevising = !isRevising
@@ -291,113 +395,26 @@ const Quotation = ({ initialData = null }) => {
     }
   }
 
-  const handleGenerateLink = async () => {
+  const handleGenerateLink = () => {
     setIsGenerating(true)
 
-    try {
-      // First generate the PDF
-      const base64Data = generatePDFFromData(quotationData, selectedReferences, specialDiscount)
+    const quotationId = `quotation_${Date.now()}`
+    localStorage.setItem(quotationId, JSON.stringify(quotationData))
 
-      const byteCharacters = atob(base64Data)
-      const byteNumbers = new Array(byteCharacters.length)
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i)
-      }
-      const byteArray = new Uint8Array(byteNumbers)
-      const blob = new Blob([byteArray], { type: "application/pdf" })
+    const link = `${window.location.origin}${window.location.pathname}?view=${quotationId}`
 
-      // Upload PDF to Google Drive (this creates a permanent copy)
-      const scriptUrl =
-        "https://script.google.com/macros/s/AKfycbzVseC0GMn77c4hbt-caHpWgb4zmh99VByIaNfReJjBsR4eUZ63uaLJ670c3p116t3lcQ/exec"
-      const pdfFileName = `Quotation_${quotationData.quotationNo}.pdf`
-
-      const pdfResponse = await fetch(scriptUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          sheetName: "Send",
-          action: "uploadPDF",
-          pdfData: base64Data,
-          fileName: pdfFileName,
-        }),
-      })
-
-      const pdfResult = await pdfResponse.json()
-
-      if (!pdfResult.success) {
-        throw new Error("Failed to upload PDF")
-      }
-
-      const permanentPdfUrl = pdfResult.fileUrl
-      const permanentFileId = pdfResult.fileId
-
-      const sendResponse = await fetch(scriptUrl, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/x-www-form-urlencoded",
-        },
-        body: new URLSearchParams({
-          sheetName: "Send",
-          action: "insertAndEmail",
-          quotationNo: quotationData.quotationNo,
-          consigneeContactName: quotationData.consigneeContactName,
-          permanentFileId: permanentFileId,
-          fileName: pdfFileName,
-          consigneeName: quotationData.consigneeName || quotationData.consigneeContactName,
-        }),
-      })
-
-      const sendResult = await sendResponse.json()
-
-      if (!sendResult.success) {
-        throw new Error("Failed to save to Send sheet or send email: " + sendResult.error)
-      }
-
-      // Create local storage link (for your own reference)
-      const quotationId = `quotation_${Date.now()}`
-      localStorage.setItem(quotationId, JSON.stringify(quotationData))
-      const localLink = `${window.location.origin}${window.location.pathname}?view=${quotationId}`
-
-      // Set the permanent URL for your reference (not sent in email)
-      setQuotationLink(localLink)
-      setPdfUrl(permanentPdfUrl)
-      setIsGenerating(false)
-
-      if (sendResult.emailSent) {
-        alert(
-          `✅ Email sent successfully!\n\n` +
-            `📧 Email sent to: ${sendResult.emailAddress}\n` +
-            `📄 Temporary PDF URL sent (expires in 10 days)\n` +
-            `⏰ PDF expires at: ${sendResult.pdfExpiresAt}\n\n` +
-            `🔗 Your permanent reference link: ${localLink}\n` +
-            `📎 Permanent PDF: ${permanentPdfUrl}`,
-        )
-      } else {
-        alert(
-          `⚠️ Quotation link generated but email could not be sent.\n\n` +
-            `Error: ${sendResult.emailError || "No email address provided"}\n\n` +
-            `🔗 Your reference link: ${localLink}\n` +
-            `📎 Permanent PDF: ${permanentPdfUrl}`,
-        )
-      }
-    } catch (error) {
-      console.error("Error generating link:", error)
-      alert("Failed to generate link: " + error.message)
-      setIsGenerating(false)
-    }
+    setQuotationLink(link)
+    setIsGenerating(false)
+    alert("Quotation link has been successfully generated and is ready to share.")
   }
 
-  const handleSaveQuotation = async (data) => {
-    setQuotationData(data)
-
-    if (!data.consigneeName) {
+  const handleSaveQuotation = async () => {
+    if (!quotationData.consigneeName) {
       alert("Please select a company name")
       return
     }
 
-    if (!data.preparedBy) {
+    if (!quotationData.preparedBy) {
       alert("Please enter prepared by name")
       return
     }
@@ -405,9 +422,9 @@ const Quotation = ({ initialData = null }) => {
     setIsSubmitting(true)
 
     try {
-      const base64Data = generatePDFFromData(data, selectedReferences, specialDiscount)
+      const base64Data = generatePDFFromData(quotationData, selectedReferences, specialDiscount)
 
-      let finalQuotationNo = data.quotationNo
+      let finalQuotationNo = quotationData.quotationNo
       if (isRevising && selectedQuotation) {
         if (!finalQuotationNo.match(/-\d{2}$/)) {
           finalQuotationNo = `${finalQuotationNo}-01`
@@ -453,51 +470,56 @@ const Quotation = ({ initialData = null }) => {
 
       const pdfUrl = pdfResult.fileUrl
 
-      const quotationDetails = [new Date().toLocaleString(), finalQuotationNo, data.date, data.preparedBy]
+      const quotationDetails = [
+        new Date().toLocaleString(),
+        finalQuotationNo,
+        quotationData.date,
+        quotationData.preparedBy,
+      ]
 
       const consignorDetails = [
-        data.consignorState,
-        data.consignorName,
-        data.consignorAddress,
-        data.consignorMobile,
-        data.consignorPhone,
-        data.consignorGSTIN,
-        data.consignorStateCode,
+        quotationData.consignorState,
+        quotationData.consignorName,
+        quotationData.consignorAddress,
+        quotationData.consignorMobile,
+        quotationData.consignorPhone,
+        quotationData.consignorGSTIN,
+        quotationData.consignorStateCode,
       ]
 
       const consigneeDetails = [
-        data.consigneeName,
-        data.consigneeAddress,
-        data.shipTo || data.consigneeAddress,
-        data.consigneeState,
-        data.consigneeContactName,
-        data.consigneeContactNo,
-        data.consigneeGSTIN,
-        data.consigneeStateCode,
-        data.msmeNumber,
+        quotationData.consigneeName,
+        quotationData.consigneeAddress,
+        quotationData.shipTo || quotationData.consigneeAddress,
+        quotationData.consigneeState,
+        quotationData.consigneeContactName,
+        quotationData.consigneeContactNo,
+        quotationData.consigneeGSTIN,
+        quotationData.consigneeStateCode,
+        quotationData.msmeNumber,
       ]
 
       const termsDetails = [
-        data.validity,
-        data.paymentTerms,
-        data.delivery,
-        data.freight,
-        data.insurance,
-        data.taxes,
-        data.notes.filter((note) => note.trim()).join("|"),
+        quotationData.validity,
+        quotationData.paymentTerms,
+        quotationData.delivery,
+        quotationData.freight,
+        quotationData.insurance,
+        quotationData.taxes,
+        quotationData.notes.filter((note) => note.trim()).join("|"),
       ]
 
       const bankDetails = [
-        data.accountNo,
-        data.bankName,
-        data.bankAddress,
-        data.ifscCode,
-        data.email,
-        data.website,
-        data.pan,
+        quotationData.accountNo,
+        quotationData.bankName,
+        quotationData.bankAddress,
+        quotationData.ifscCode,
+        quotationData.email,
+        quotationData.website,
+        quotationData.pan,
       ]
 
-      const itemsString = data.items
+      const itemsString = quotationData.items
         .map((item) => {
           return [
             item.code || "",
@@ -516,7 +538,9 @@ const Quotation = ({ initialData = null }) => {
         .join(";")
 
       // Convert special offers array to string for database storage
-      const specialOffersString = data.specialOffers ? data.specialOffers.filter((offer) => offer.trim()).join("|") : ""
+      const specialOffersString = quotationData.specialOffers
+        ? quotationData.specialOffers.filter((offer) => offer.trim()).join("|")
+        : ""
 
       const mainRowData = [
         ...quotationDetails,
@@ -554,7 +578,7 @@ const Quotation = ({ initialData = null }) => {
         throw new Error("Error saving quotation: " + (sheetResult.error || "Unknown error"))
       }
 
-      const itemPromises = data.items.map(async (item) => {
+      const itemPromises = quotationData.items.map(async (item) => {
         const itemData = [
           finalQuotationNo,
           item.code,
@@ -602,66 +626,64 @@ const Quotation = ({ initialData = null }) => {
 
       alert("Quotation saved successfully with all items!")
 
-      if (!initialData) {
-        const nextQuotationNumber = await getNextQuotationNumber()
-        setQuotationData({
-          quotationNo: nextQuotationNumber,
-          date: new Date().toLocaleDateString("en-GB"),
-          consignorState: "",
-          consignorName: "",
-          consignorAddress: "",
-          consignorMobile: "",
-          consignorPhone: "",
-          consignorGSTIN: "",
-          consignorStateCode: "",
-          companyName: "",
-          consigneeName: "",
-          consigneeAddress: "",
-          consigneeState: "",
-          consigneeContactName: "",
-          consigneeContactNo: "",
-          consigneeGSTIN: "",
-          consigneeStateCode: "",
-          msmeNumber: "",
-          items: [
-            {
-              id: 1,
-              code: "",
-              name: "",
-              gst: 18,
-              qty: 1,
-              units: "Nos",
-              rate: 0,
-              discount: 0,
-              flatDiscount: 0,
-              amount: 0,
-            },
-          ],
-          totalFlatDiscount: 0,
-          subtotal: 0,
-          cgstRate: 9,
-          sgstRate: 9,
-          cgstAmount: 0,
-          sgstAmount: 0,
-          total: 0,
-          validity: "The above quoted prices are valid up to 5 days from date of offer.",
-          paymentTerms: "100% advance payment in the mode of NEFT, RTGS & DD",
-          delivery: "Material is ready in our stock",
-          freight: "Extra as per actual.",
-          insurance: "Transit insurance for all shipment is at Buyer's risk.",
-          taxes: "Extra as per actual.",
-          accountNo: "",
-          bankName: "",
-          bankAddress: "",
-          ifscCode: "",
-          email: "",
-          website: "",
-          pan: "",
-          notes: [""],
-          preparedBy: "",
-          specialOffers: [""],
-        })
-      }
+      const nextQuotationNumber = await getNextQuotationNumber()
+      setQuotationData({
+        quotationNo: nextQuotationNumber,
+        date: new Date().toLocaleDateString("en-GB"),
+        consignorState: "",
+        consignorName: "",
+        consignorAddress: "",
+        consignorMobile: "",
+        consignorPhone: "",
+        consignorGSTIN: "",
+        consignorStateCode: "",
+        companyName: "",
+        consigneeName: "",
+        consigneeAddress: "",
+        consigneeState: "",
+        consigneeContactName: "",
+        consigneeContactNo: "",
+        consigneeGSTIN: "",
+        consigneeStateCode: "",
+        msmeNumber: "",
+        items: [
+          {
+            id: 1,
+            code: "",
+            name: "",
+            gst: 18,
+            qty: 1,
+            units: "Nos",
+            rate: 0,
+            discount: 0,
+            flatDiscount: 0,
+            amount: 0,
+          },
+        ],
+        totalFlatDiscount: 0,
+        subtotal: 0,
+        cgstRate: 9,
+        sgstRate: 9,
+        cgstAmount: 0,
+        sgstAmount: 0,
+        total: 0,
+        validity: "The above quoted prices are valid up to 5 days from date of offer.",
+        paymentTerms: "100% advance payment in the mode of NEFT, RTGS & DD",
+        delivery: "Material is ready in our stock",
+        freight: "Extra as per actual.",
+        insurance: "Transit insurance for all shipment is at Buyer's risk.",
+        taxes: "Extra as per actual.",
+        accountNo: "",
+        bankName: "",
+        bankAddress: "",
+        ifscCode: "",
+        email: "",
+        website: "",
+        pan: "",
+        notes: [""],
+        preparedBy: "",
+        specialOffers: [""],
+      })
     } catch (error) {
       alert("Error: " + error.message)
     } finally {
@@ -669,67 +691,119 @@ const Quotation = ({ initialData = null }) => {
     }
   }
 
-  const handleFormSubmit = (data) => {
-    setQuotationData(data)
-    setCurrentStep("preview")
-  }
-
-  const handleEdit = () => {
-    setCurrentStep("form")
-  }
-
-  const handleNewQuotation = () => {
-    setQuotationData(null)
-    setCurrentStep("form")
-  }
-
   return (
     <div className="container mx-auto py-6 px-4">
       <QuotationHeader image={image1} isRevising={isRevising} toggleRevising={toggleRevising} />
 
-      {currentStep === "preview" && quotationData ? (
-        <QuotationPreview
-          data={quotationData}
-          onEdit={handleEdit}
-          onNewQuotation={handleNewQuotation}
-          quotationLink={quotationLink}
-          pdfUrl={pdfUrl}
-          selectedReferences={selectedReferences}
-          specialDiscount={specialDiscount}
-          imageform={imageform}
-          handleGenerateLink={handleGenerateLink}
-          handleGeneratePDF={handleGeneratePDF}
-          isGenerating={isGenerating}
-          isSubmitting={isSubmitting}
-        />
-      ) : (
-        <QuotationForm
-          initialData={quotationData}
-          onSubmit={handleFormSubmit}
-          handleInputChange={handleInputChange}
-          handleItemChange={handleItemChange}
-          handleFlatDiscountChange={handleFlatDiscountChange}
-          handleAddItem={handleAddItem}
-          handleNoteChange={handleNoteChange}
-          addNote={addNote}
-          removeNote={removeNote}
-          hiddenFields={hiddenFields}
-          toggleFieldVisibility={toggleFieldVisibility}
-          isRevising={isRevising}
-          existingQuotations={existingQuotations}
-          selectedQuotation={selectedQuotation}
-          handleQuotationSelect={handleQuotationSelect}
-          isLoadingQuotation={isLoadingQuotation}
-          handleSpecialDiscountChange={handleSpecialDiscountChangeWrapper}
-          specialDiscount={specialDiscount}
-          setSpecialDiscount={setSpecialDiscount}
-          selectedReferences={selectedReferences}
-          setSelectedReferences={setSelectedReferences}
-          imageform={imageform}
-          addSpecialOffer={addSpecialOffer}
-          removeSpecialOffer={removeSpecialOffer}
-          handleSpecialOfferChange={handleSpecialOfferChange}
-        />
+      <div className="bg-white rounded-lg shadow border">
+        <div className="border-b">
+          <div className="flex">
+            <button
+              className={`px-4 py-2 font-medium ${
+                activeTab === "edit"
+                  ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white rounded-tl-lg"
+                  : "text-gray-600"
+              }`}
+              onClick={() => setActiveTab("edit")}
+              disabled={isViewMode}
+            >
+              Edit Quotation
+            </button>
+            <button
+              className={`px-4 py-2 font-medium ${
+                activeTab === "preview" ? "bg-gradient-to-r from-indigo-500 to-purple-500 text-white" : "text-gray-600"
+              }`}
+              onClick={() => setActiveTab("preview")}
+            >
+              Preview
+            </button>
+          </div>
+        </div>
+
+        <div className="p-4">
+          {activeTab === "edit" ? (
+            <QuotationForm
+              quotationData={quotationData}
+              handleInputChange={handleInputChange}
+              handleItemChange={handleItemChange}
+              handleFlatDiscountChange={handleFlatDiscountChange}
+              handleAddItem={handleAddItem}
+              handleNoteChange={handleNoteChange}
+              addNote={addNote}
+              removeNote={removeNote}
+              hiddenFields={hiddenFields}
+              toggleFieldVisibility={toggleFieldVisibility}
+              isRevising={isRevising}
+              existingQuotations={existingQuotations}
+              selectedQuotation={selectedQuotation}
+              handleQuotationSelect={handleQuotationSelect}
+              isLoadingQuotation={isLoadingQuotation}
+              handleSpecialDiscountChange={handleSpecialDiscountChangeWrapper}
+              specialDiscount={specialDiscount}
+              setSpecialDiscount={setSpecialDiscount}
+              selectedReferences={selectedReferences}
+              setSelectedReferences={setSelectedReferences}
+              imageform={imageform}
+              addSpecialOffer={addSpecialOffer}
+              removeSpecialOffer={removeSpecialOffer}
+              handleSpecialOfferChange={handleSpecialOfferChange}
+              //   handleSpecialDiscountChange={handleSpecialDiscountChangeWrapper}
+            />
+          ) : (
+            <QuotationPreview
+              quotationData={quotationData}
+              quotationLink={quotationLink}
+              pdfUrl={pdfUrl}
+              selectedReferences={selectedReferences}
+              specialDiscount={specialDiscount}
+              imageform={imageform}
+              handleGenerateLink={handleGenerateLink}
+              handleGeneratePDF={handleGeneratePDF}
+              isGenerating={isGenerating}
+              isSubmitting={isSubmitting}
+            />
+          )}
+        </div>
+      </div>
+
+      {activeTab === "edit" && (
+        <div className="flex justify-between mt-4">
+          <button
+            className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md flex items-center"
+            onClick={handleSaveQuotation}
+            disabled={isSubmitting || isGenerating}
+          >
+            {isSubmitting ? (
+              <>
+                <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin mr-2"></div>
+                Saving...
+              </>
+            ) : (
+              <>
+                <SaveIcon className="h-4 w-4 mr-2" />
+                Save Quotation
+              </>
+            )}
+          </button>
+          <div className="space-x-2">
+            <button
+              className="border border-gray-300 hover:bg-gray-50 px-4 py-2 rounded-md flex items-center inline-flex"
+              onClick={handleGenerateLink}
+              disabled={isGenerating || isSubmitting}
+            >
+              <ShareIcon className="h-4 w-4 mr-2" />
+              Generate Link
+            </button>
+            <button
+              className="bg-indigo-600 hover:bg-indigo-700 text-white px-4 py-2 rounded-md flex items-center inline-flex"
+              onClick={handleGeneratePDF}
+              disabled={isGenerating || isSubmitting}
+            >
+              <DownloadIcon className="h-4 w-4 mr-2" />
+              {isGenerating ? "Generating..." : "Generate PDF"}
+            </button>
+          </div>
+        </div>
       )}
     </div>
   )

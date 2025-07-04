@@ -3,29 +3,17 @@ import { PlusIcon, TrashIcon } from "../../components/Icons"
 import { useState } from "react"
 
 const ItemsTable = ({
-  quotationData = {
-    items: [],
-    subtotal: 0,
-    totalFlatDiscount: 0,
-    cgstRate: 9,
-    sgstRate: 9,
-    igstRate: 18,
-    isIGST: false,
-    cgstAmount: 0,
-    sgstAmount: 0,
-    igstAmount: 0,
-    total: 0
-  },
-  handleItemChange = () => {},
-  handleAddItem = () => {},
-  specialDiscount = 0,
-  setSpecialDiscount = () => {},
-  productCodes = [],
-  productNames = [],
-  productData = {},
-  setQuotationData = () => {},
-  handleSpecialDiscountChange = () => {},
-}) => {
+    quotationData,
+    handleItemChange,
+    handleAddItem,
+    specialDiscount,
+    setSpecialDiscount,
+    productCodes,
+    productNames,
+    productData,
+    setQuotationData,
+    handleSpecialDiscountChange, // Add this
+  }) => {
   const [hideDisc, setHideDisc] = useState(false)
   const [hideFlatDisc, setHideFlatDisc] = useState(false)
   const [hideTotalFlatDisc, setHideTotalFlatDisc] = useState(false)
@@ -38,50 +26,8 @@ const ItemsTable = ({
     return baseSpan.toString()
   }
 
-  // Safely calculate values with defaults
+  // Calculate taxable amount properly (subtotal - totalFlatDiscount)
   const taxableAmount = Math.max(0, quotationData.subtotal - quotationData.totalFlatDiscount)
-  const items = quotationData.items || []
-
-  const formatCurrency = (value) => {
-    return new Intl.NumberFormat('en-IN', {
-      style: 'currency',
-      currency: 'INR',
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2
-    }).format(value || 0)
-  }
-
-  const handleDeleteItem = (itemId) => {
-    const newItems = items.filter((i) => i.id !== itemId)
-    if (newItems.length === 0) return
-
-    const subtotal = newItems.reduce((sum, i) => sum + (i.amount || 0), 0)
-    const subtotalAfterDiscount = Math.max(0, subtotal - quotationData.totalFlatDiscount)
-    
-    let cgstAmount = 0
-    let sgstAmount = 0
-    let igstAmount = 0
-    let total = 0
-
-    if (quotationData.isIGST) {
-      igstAmount = Number((subtotalAfterDiscount * (quotationData.igstRate / 100)).toFixed(2))
-      total = Number((subtotalAfterDiscount + igstAmount - (Number(specialDiscount) || 0)).toFixed(2))
-    } else {
-      cgstAmount = Number((subtotalAfterDiscount * (quotationData.cgstRate / 100)).toFixed(2))
-      sgstAmount = Number((subtotalAfterDiscount * (quotationData.sgstRate / 100)).toFixed(2))
-      total = Number((subtotalAfterDiscount + cgstAmount + sgstAmount - (Number(specialDiscount) || 0)).toFixed(2))
-    }
-
-    setQuotationData({
-      ...quotationData,
-      items: newItems,
-      subtotal,
-      cgstAmount,
-      sgstAmount,
-      igstAmount,
-      total,
-    })
-  }
 
   return (
     <div className="bg-white border rounded-lg p-4 shadow-sm">
@@ -141,21 +87,21 @@ const ItemsTable = ({
               </tr>
             </thead>
             <tbody className="bg-white divide-y divide-gray-200">
-              {items.map((item, index) => (
-                <tr key={item.id || index}>
+              {quotationData.items.map((item, index) => (
+                <tr key={item.id}>
                   <td className="px-4 py-2">{index + 1}</td>
                   <td className="px-4 py-2">
                     <div className="relative">
                       <input
                         type="text"
-                        value={item.code || ''}
+                        value={item.code}
                         onChange={(e) => {
                           handleItemChange(item.id, "code", e.target.value)
                           if (productData[e.target.value]) {
                             const productInfo = productData[e.target.value]
-                            handleItemChange(item.id, "name", productInfo.name || '')
-                            handleItemChange(item.id, "description", productInfo.description || '')
-                            handleItemChange(item.id, "rate", productInfo.rate || 0)
+                            handleItemChange(item.id, "name", productInfo.name)
+                            handleItemChange(item.id, "description", productInfo.description)
+                            handleItemChange(item.id, "rate", productInfo.rate)
                           }
                         }}
                         list={`code-list-${item.id}`}
@@ -172,14 +118,14 @@ const ItemsTable = ({
                     <div className="relative">
                       <input
                         type="text"
-                        value={item.name || ''}
+                        value={item.name}
                         onChange={(e) => {
                           handleItemChange(item.id, "name", e.target.value)
                           if (productData[e.target.value]) {
                             const productInfo = productData[e.target.value]
-                            handleItemChange(item.id, "code", productInfo.code || '')
-                            handleItemChange(item.id, "description", productInfo.description || '')
-                            handleItemChange(item.id, "rate", productInfo.rate || 0)
+                            handleItemChange(item.id, "code", productInfo.code)
+                            handleItemChange(item.id, "description", productInfo.description)
+                            handleItemChange(item.id, "rate", productInfo.rate)
                           }
                         }}
                         list={`name-list-${item.id}`}
@@ -195,40 +141,39 @@ const ItemsTable = ({
                     </div>
                   </td>
                   <td className="px-4 py-2">
-                    <input
-                      type="text"
-                      value={item.description || ''}
-                      onChange={(e) => handleItemChange(item.id, "description", e.target.value)}
-                      className="w-full p-1 border border-gray-300 rounded-md"
-                      placeholder="Enter description"
-                    />
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={item.description || ""}
+                        onChange={(e) => handleItemChange(item.id, "description", e.target.value)}
+                        className="w-full p-1 border border-gray-300 rounded-md"
+                        placeholder="Enter description"
+                      />
+                    </div>
                   </td>
                   <td className="px-4 py-2">
                     <select
-                      value={item.gst || 18}
-                      onChange={(e) => handleItemChange(item.id, "gst", Number(e.target.value) || 0)}
+                      value={item.gst}
+                      onChange={(e) => handleItemChange(item.id, "gst", Number.parseInt(e.target.value))}
                       className="w-20 p-1 border border-gray-300 rounded-md"
                     >
                       <option value="0">0%</option>
-                      <option value="5">5%</option>
-                      <option value="12">12%</option>
                       <option value="18">18%</option>
-                      <option value="28">28%</option>
                     </select>
                   </td>
                   <td className="px-4 py-2">
                     <input
                       type="number"
-                      value={item.qty || 1}
-                      onChange={(e) => handleItemChange(item.id, "qty", Math.max(1, Number(e.target.value) || 1))}
+                      value={item.qty}
+                      onChange={(e) => handleItemChange(item.id, "qty", Number.parseInt(e.target.value) || 0)}
                       className="w-16 p-1 border border-gray-300 rounded-md"
-                      min="1"
+                      placeholder="0"
                       required
                     />
                   </td>
                   <td className="px-4 py-2">
                     <select
-                      value={item.units || 'Nos'}
+                      value={item.units}
                       onChange={(e) => handleItemChange(item.id, "units", e.target.value)}
                       className="w-20 p-1 border border-gray-300 rounded-md"
                     >
@@ -236,18 +181,15 @@ const ItemsTable = ({
                       <option value="Pcs">Pcs</option>
                       <option value="Kg">Kg</option>
                       <option value="Set">Set</option>
-                      <option value="Box">Box</option>
-                      <option value="Meter">Meter</option>
                     </select>
                   </td>
                   <td className="px-4 py-2">
                     <input
                       type="number"
-                      value={item.rate || 0}
-                      onChange={(e) => handleItemChange(item.id, "rate", Math.max(0, Number(e.target.value) || 0))}
+                      value={item.rate}
+                      onChange={(e) => handleItemChange(item.id, "rate", Number.parseFloat(e.target.value) || 0)}
                       className="w-24 p-1 border border-gray-300 rounded-md"
-                      min="0"
-                      step="0.01"
+                      placeholder="0.00"
                       required
                     />
                   </td>
@@ -255,9 +197,10 @@ const ItemsTable = ({
                     <td className="px-4 py-2">
                       <input
                         type="number"
-                        value={item.discount || 0}
-                        onChange={(e) => handleItemChange(item.id, "discount", Math.max(0, Math.min(100, Number(e.target.value) || 0)))}
+                        value={item.discount}
+                        onChange={(e) => handleItemChange(item.id, "discount", Number.parseFloat(e.target.value) || 0)}
                         className="w-20 p-1 border border-gray-300 rounded-md"
+                        placeholder="0%"
                         min="0"
                         max="100"
                       />
@@ -267,18 +210,20 @@ const ItemsTable = ({
                     <td className="px-4 py-2">
                       <input
                         type="number"
-                        value={item.flatDiscount || 0}
-                        onChange={(e) => handleItemChange(item.id, "flatDiscount", Math.max(0, Number(e.target.value) || 0))}
+                        value={item.flatDiscount}
+                        onChange={(e) =>
+                          handleItemChange(item.id, "flatDiscount", Number.parseFloat(e.target.value) || 0)
+                        }
                         className="w-24 p-1 border border-gray-300 rounded-md"
+                        placeholder="0.00"
                         min="0"
-                        step="0.01"
                       />
                     </td>
                   )}
                   <td className="px-4 py-2">
                     <input
-                      type="text"
-                      value={formatCurrency(item.amount || 0)}
+                      type="number"
+                      value={item.amount}
                       className="w-24 p-1 border border-gray-300 rounded-md bg-gray-50"
                       readOnly
                     />
@@ -286,8 +231,38 @@ const ItemsTable = ({
                   <td className="px-4 py-2">
                     <button
                       className="text-red-500 hover:text-red-700 p-1 rounded-md"
-                      onClick={() => handleDeleteItem(item.id)}
-                      disabled={items.length <= 1}
+                      onClick={() => {
+                        const newItems = quotationData.items.filter((i) => i.id !== item.id)
+                        if (newItems.length === 0) return
+
+                        const subtotal = newItems.reduce((sum, i) => sum + i.amount, 0)
+                        const subtotalAfterDiscount = Math.max(0, subtotal - quotationData.totalFlatDiscount)
+                        
+                        let cgstAmount = 0
+                        let sgstAmount = 0
+                        let igstAmount = 0
+                        let total = 0
+
+                        if (quotationData.isIGST) {
+                          igstAmount = Number((subtotalAfterDiscount * (quotationData.igstRate / 100)).toFixed(2))
+                          total = Number((subtotalAfterDiscount + igstAmount - (Number(specialDiscount) || 0)).toFixed(2))
+                        } else {
+                          cgstAmount = Number((subtotalAfterDiscount * (quotationData.cgstRate / 100)).toFixed(2))
+                          sgstAmount = Number((subtotalAfterDiscount * (quotationData.sgstRate / 100)).toFixed(2))
+                          total = Number((subtotalAfterDiscount + cgstAmount + sgstAmount - (Number(specialDiscount) || 0)).toFixed(2))
+                        }
+
+                        setQuotationData({
+                          ...quotationData,
+                          items: newItems,
+                          subtotal,
+                          cgstAmount,
+                          sgstAmount,
+                          igstAmount,
+                          total,
+                        })
+                      }}
+                      disabled={quotationData.items.length <= 1}
                     >
                       <TrashIcon className="h-4 w-4" />
                     </button>
@@ -301,7 +276,7 @@ const ItemsTable = ({
                   Subtotal:
                 </td>
                 <td className="border p-2">
-                  {formatCurrency(quotationData.subtotal)}
+                  ₹{typeof quotationData.subtotal === "number" ? quotationData.subtotal.toFixed(2) : "0.00"}
                 </td>
                 <td></td>
               </tr>
@@ -311,7 +286,10 @@ const ItemsTable = ({
                     Total Flat Discount:
                   </td>
                   <td className="p-2">
-                    {formatCurrency(quotationData.totalFlatDiscount)}
+                    ₹
+                    {typeof quotationData.totalFlatDiscount === "number"
+                      ? quotationData.totalFlatDiscount.toFixed(2)
+                      : "0.00"}
                   </td>
                   <td></td>
                 </tr>
@@ -320,7 +298,7 @@ const ItemsTable = ({
                 <td colSpan={calculateColSpan()} className="px-4 py-2 text-right font-medium">
                   Taxable Amount:
                 </td>
-                <td className="px-4 py-2">{formatCurrency(taxableAmount)}</td>
+                <td className="px-4 py-2">₹{taxableAmount.toFixed(2)}</td>
                 <td></td>
               </tr>
               {quotationData.isIGST ? (
@@ -328,7 +306,7 @@ const ItemsTable = ({
                   <td colSpan={calculateColSpan()} className="px-4 py-2 text-right font-medium">
                     IGST ({quotationData.igstRate}%):
                   </td>
-                  <td className="px-4 py-2">{formatCurrency(quotationData.igstAmount)}</td>
+                  <td className="px-4 py-2">₹{(quotationData.igstAmount || 0).toFixed(2)}</td>
                   <td></td>
                 </tr>
               ) : (
@@ -337,14 +315,14 @@ const ItemsTable = ({
                     <td colSpan={calculateColSpan()} className="px-4 py-2 text-right font-medium">
                       CGST ({quotationData.cgstRate}%):
                     </td>
-                    <td className="px-4 py-2">{formatCurrency(quotationData.cgstAmount)}</td>
+                    <td className="px-4 py-2">₹{quotationData.cgstAmount.toFixed(2)}</td>
                     <td></td>
                   </tr>
                   <tr className="border">
                     <td colSpan={calculateColSpan()} className="px-4 py-2 text-right font-medium">
                       SGST ({quotationData.sgstRate}%):
                     </td>
-                    <td className="px-4 py-2">{formatCurrency(quotationData.sgstAmount)}</td>
+                    <td className="px-4 py-2">₹{quotationData.sgstAmount.toFixed(2)}</td>
                     <td></td>
                   </tr>
                 </>

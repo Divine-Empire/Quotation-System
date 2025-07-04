@@ -1,7 +1,6 @@
 "use client"
 
-import { useState, useEffect, useContext } from "react"
-import { AuthContext } from "../../App"
+import { useState, useEffect } from "react"
 import QuotationDetails from "./quotation-details"
 import ConsignorDetails from "./consignor-details"
 import ConsigneeDetails from "./consignee-details"
@@ -37,7 +36,6 @@ const QuotationForm = ({
   removeSpecialOffer,
   handleSpecialOfferChange,
 }) => {
-  const { userType, userCompany } = useContext(AuthContext)
   const [dropdownData, setDropdownData] = useState({})
   const [stateOptions, setStateOptions] = useState(["Select State"])
   const [companyOptions, setCompanyOptions] = useState(["Select Company"])
@@ -205,21 +203,17 @@ const QuotationForm = ({
               // Column B (index 1)
               const leadNo = safeToString(row.c[1].v)
               if (leadNo && !leadNoOptionsData.includes(leadNo)) {
-                // Filter by company for regular users
-                const companyName = row.c[4] ? safeToString(row.c[4].v) : ""
-                if (userType === "admin" || companyName === userCompany) {
-                  leadNoOptionsData.push(leadNo)
+                leadNoOptionsData.push(leadNo)
 
-                  leadNoDataMap[leadNo] = {
-                    sheet: "FMS",
-                    companyName: companyName,
-                    address: row.c[7] ? safeToString(row.c[7].v) : "", // Column H
-                    state: row.c[9] ? safeToString(row.c[9].v) : "", // Column J
-                    contactName: row.c[6] ? safeToString(row.c[6].v) : "", // Column G
-                    contactNo: row.c[5] ? safeToString(row.c[5].v) : "", // Column F
-                    gstin: row.c[21] ? safeToString(row.c[21].v) : "", // Column V
-                    rowData: row.c, // Store full row data for items
-                  }
+                leadNoDataMap[leadNo] = {
+                  sheet: "FMS",
+                  companyName: row.c[4] ? safeToString(row.c[4].v) : "", // Column E
+                  address: row.c[7] ? safeToString(row.c[7].v) : "", // Column H
+                  state: row.c[9] ? safeToString(row.c[9].v) : "", // Column J
+                  contactName: row.c[6] ? safeToString(row.c[6].v) : "", // Column G
+                  contactNo: row.c[5] ? safeToString(row.c[5].v) : "", // Column F
+                  gstin: row.c[21] ? safeToString(row.c[21].v) : "", // Column V
+                  rowData: row.c, // Store full row data for items
                 }
               }
             }
@@ -243,22 +237,18 @@ const QuotationForm = ({
               // Column B (index 1)
               const leadNo = safeToString(row.c[1].v)
               if (leadNo && !leadNoOptionsData.includes(leadNo)) {
-                // Filter by company for regular users
-                const companyName = row.c[3] ? safeToString(row.c[3].v) : ""
-                if (userType === "admin" || companyName === userCompany) {
-                  leadNoOptionsData.push(leadNo)
+                leadNoOptionsData.push(leadNo)
 
-                  leadNoDataMap[leadNo] = {
-                    sheet: "ENQUIRY",
-                    companyName: companyName,
-                    address: row.c[6] ? safeToString(row.c[6].v) : "", // Column G
-                    state: row.c[13] ? safeToString(row.c[13].v) : "", // Column N
-                    contactName: row.c[5] ? safeToString(row.c[5].v) : "", // Column F
-                    contactNo: row.c[4] ? safeToString(row.c[4].v) : "", // Column E
-                    gstin: row.c[11] ? safeToString(row.c[11].v) : "", // Column L
-                    shipTo: row.c[8] ? safeToString(row.c[8].v) : "", // Column I
-                    rowData: row.c, // Store full row data for items
-                  }
+                leadNoDataMap[leadNo] = {
+                  sheet: "ENQUIRY",
+                  companyName: row.c[3] ? safeToString(row.c[3].v) : "", // Column D
+                  address: row.c[6] ? safeToString(row.c[6].v) : "", // Column G
+                  state: row.c[13] ? safeToString(row.c[13].v) : "", // Column N
+                  contactName: row.c[5] ? safeToString(row.c[5].v) : "", // Column F
+                  contactNo: row.c[4] ? safeToString(row.c[4].v) : "", // Column E
+                  gstin: row.c[11] ? safeToString(row.c[11].v) : "", // Column L
+                  shipTo: row.c[8] ? safeToString(row.c[8].v) : "", // Column I
+                  rowData: row.c, // Store full row data for items
                 }
               }
             }
@@ -273,7 +263,7 @@ const QuotationForm = ({
     }
 
     fetchLeadNumbers()
-  }, [userType, userCompany])
+  }, [])
 
   const handleSpecialDiscountChangeWrapper = (value) => {
     const discount = Number(value) || 0
@@ -473,7 +463,7 @@ const QuotationForm = ({
 
         console.log(`Regular items found: ${autoItems.length}`)
 
-        // SECOND: Process JSON data from CB column (index 55) - Continue from item 11+
+        // SECOND: Process JSON data from CB column (index 79) - Continue from item 11+
         const cbValue = row[79] ? safeToString(row[79].v) : ""
         console.log("CB Value from lead selection:", cbValue)
 

@@ -3,30 +3,30 @@
 import { getCompanyPrefix, getNextQuotationNumber } from "./quotation-service"
 
 const ConsigneeDetails = ({
-  quotationData = {}, // Provide default empty object
+  quotationData,
   handleInputChange,
-  companyOptions = [], // Provide default empty array
-  dropdownData = {}, // Provide default empty object
+  companyOptions,
+  dropdownData,
   onQuotationNumberUpdate,
   onAutoFillItems,
-  showLeadNoDropdown = false, // Provide default false
+  showLeadNoDropdown,
   setShowLeadNoDropdown,
-  leadNoOptions = [], // Provide default empty array
+  leadNoOptions,
   handleLeadNoSelect,
 }) => {
   const handleCompanyChange = async (e) => {
     const selectedCompany = e.target.value
     handleInputChange("consigneeName", selectedCompany)
 
-    if (selectedCompany && dropdownData?.companies?.[selectedCompany]) {
+    if (selectedCompany && dropdownData.companies && dropdownData.companies[selectedCompany]) {
       const companyDetails = dropdownData.companies[selectedCompany]
 
-      handleInputChange("consigneeAddress", companyDetails.address || "")
-      handleInputChange("consigneeState", companyDetails.state || "")
-      handleInputChange("consigneeContactName", companyDetails.contactName || "")
-      handleInputChange("consigneeContactNo", companyDetails.contactNo || "")
-      handleInputChange("consigneeGSTIN", companyDetails.gstin || "")
-      handleInputChange("consigneeStateCode", companyDetails.stateCode || "")
+      handleInputChange("consigneeAddress", companyDetails.address)
+      handleInputChange("consigneeState", companyDetails.state)
+      handleInputChange("consigneeContactName", companyDetails.contactName)
+      handleInputChange("consigneeContactNo", companyDetails.contactNo)
+      handleInputChange("consigneeGSTIN", companyDetails.gstin)
+      handleInputChange("consigneeStateCode", companyDetails.stateCode)
 
       // Get company prefix and update quotation number
       try {
@@ -102,7 +102,7 @@ const ConsigneeDetails = ({
           <label className="block text-sm font-medium">Company Name</label>
           <input
             list="companyOptions"
-            value={quotationData?.consigneeName || ""}
+            value={quotationData.consigneeName}
             onChange={handleCompanyChange}
             className="w-full p-2 border border-gray-300 rounded-md"
             required
@@ -117,7 +117,7 @@ const ConsigneeDetails = ({
         <div className="space-y-2">
           <label className="block text-sm font-medium">Address</label>
           <textarea
-            value={quotationData?.consigneeAddress || ""}
+            value={quotationData.consigneeAddress}
             onChange={(e) => handleInputChange("consigneeAddress", e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md"
             rows={3}
@@ -128,7 +128,7 @@ const ConsigneeDetails = ({
         <div className="space-y-2">
           <label className="block text-sm font-medium">Ship To</label>
           <textarea
-            value={quotationData?.shipTo || ""}
+            value={quotationData.shipTo || ""}
             onChange={(e) => handleInputChange("shipTo", e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md"
             rows={3}
@@ -140,7 +140,7 @@ const ConsigneeDetails = ({
           <label className="block text-sm font-medium">State</label>
           <input
             type="text"
-            value={quotationData?.consigneeState || ""}
+            value={quotationData.consigneeState}
             onChange={(e) => handleInputChange("consigneeState", e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md"
             placeholder="Enter State"
@@ -152,7 +152,7 @@ const ConsigneeDetails = ({
             <label className="block text-sm font-medium">Contact Name</label>
             <input
               type="text"
-              value={quotationData?.consigneeContactName || ""}
+              value={quotationData.consigneeContactName}
               onChange={(e) => handleInputChange("consigneeContactName", e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md"
             />
@@ -161,7 +161,7 @@ const ConsigneeDetails = ({
             <label className="block text-sm font-medium">Contact No.</label>
             <input
               type="text"
-              value={quotationData?.consigneeContactNo || ""}
+              value={quotationData.consigneeContactNo}
               onChange={(e) => handleInputChange("consigneeContactNo", e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md"
             />
@@ -173,7 +173,7 @@ const ConsigneeDetails = ({
             <label className="block text-sm font-medium">GSTIN</label>
             <input
               type="text"
-              value={quotationData?.consigneeGSTIN || ""}
+              value={quotationData.consigneeGSTIN}
               onChange={(e) => handleInputChange("consigneeGSTIN", e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md"
             />
@@ -182,7 +182,7 @@ const ConsigneeDetails = ({
             <label className="block text-sm font-medium">State Code</label>
             <input
               type="text"
-              value={quotationData?.consigneeStateCode || ""}
+              value={quotationData.consigneeStateCode}
               onChange={(e) => handleInputChange("consigneeStateCode", e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md"
             />

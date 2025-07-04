@@ -1,12 +1,12 @@
 "use client"
 
 const ConsignorDetails = ({
-  quotationData = {}, // Provide default empty object
+  quotationData,
   handleInputChange,
-  referenceOptions = [], // Provide default empty array
-  selectedReferences = [], // Provide default empty array
+  referenceOptions,
+  selectedReferences,
   setSelectedReferences,
-  dropdownData = {}, // Provide default empty object
+  dropdownData,
 }) => {
   return (
     <>
@@ -26,7 +26,7 @@ const ConsignorDetails = ({
                     setSelectedReferences(updated)
                     handleInputChange("consignorName", updated.join(", "))
 
-                    if (updated.length > 0 && dropdownData?.references) {
+                    if (updated.length > 0 && dropdownData.references) {
                       const mobileNumbers = updated.map((r) => dropdownData.references[r]?.mobile).filter(Boolean)
                       const phoneNumbers = updated.map((r) => dropdownData.references[r]?.phone).filter(Boolean)
                       handleInputChange("consignorMobile", mobileNumbers.join(", "))
@@ -53,7 +53,7 @@ const ConsignorDetails = ({
                 setSelectedReferences(updated)
                 handleInputChange("consignorName", updated.join(", "))
 
-                if (dropdownData?.references?.[selectedRef]) {
+                if (dropdownData.references && dropdownData.references[selectedRef]) {
                   const mobileNumbers = updated.map((ref) => dropdownData.references[ref]?.mobile).filter(Boolean)
                   const phoneNumbers = updated.map((ref) => dropdownData.references[ref]?.phone).filter(Boolean)
                   handleInputChange("consignorMobile", mobileNumbers.join(", "))
@@ -78,7 +78,7 @@ const ConsignorDetails = ({
         <div className="space-y-2">
           <label className="block text-sm font-medium">Address</label>
           <textarea
-            value={quotationData?.consignorAddress || ""}
+            value={quotationData.consignorAddress}
             onChange={(e) => handleInputChange("consignorAddress", e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md"
             rows={3}
@@ -90,7 +90,7 @@ const ConsignorDetails = ({
             <label className="block text-sm font-medium">Mobile</label>
             <input
               type="text"
-              value={quotationData?.consignorMobile || ""}
+              value={quotationData.consignorMobile}
               onChange={(e) => handleInputChange("consignorMobile", e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md"
             />
@@ -99,7 +99,7 @@ const ConsignorDetails = ({
             <label className="block text-sm font-medium">Phone</label>
             <input
               type="text"
-              value={quotationData?.consignorPhone || ""}
+              value={quotationData.consignorPhone}
               onChange={(e) => handleInputChange("consignorPhone", e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md"
             />
@@ -111,7 +111,7 @@ const ConsignorDetails = ({
             <label className="block text-sm font-medium">GSTIN</label>
             <input
               type="text"
-              value={quotationData?.consignorGSTIN || ""}
+              value={quotationData.consignorGSTIN}
               onChange={(e) => handleInputChange("consignorGSTIN", e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md"
             />
@@ -120,7 +120,7 @@ const ConsignorDetails = ({
             <label className="block text-sm font-medium">State Code</label>
             <input
               type="text"
-              value={quotationData?.consignorStateCode || ""}
+              value={quotationData.consignorStateCode}
               onChange={(e) => handleInputChange("consignorStateCode", e.target.value)}
               className="w-full p-2 border border-gray-300 rounded-md"
             />
@@ -131,7 +131,7 @@ const ConsignorDetails = ({
           <label className="block text-sm font-medium">MSME No.</label>
           <input
             type="text"
-            value={quotationData?.msmeNumber || ""}
+            value={quotationData.msmeNumber || ""}
             onChange={(e) => handleInputChange("msmeNumber", e.target.value)}
             className="w-full p-2 border border-gray-300 rounded-md"
           />

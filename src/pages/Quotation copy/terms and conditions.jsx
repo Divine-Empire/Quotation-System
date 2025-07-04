@@ -1,30 +1,6 @@
 "use client"
 
-const TermsAndConditions = ({
-  quotationData = {}, // Provide default empty object
-  handleInputChange = () => {}, // Default empty function
-  hiddenFields = {}, // Default empty object
-  toggleFieldVisibility = () => {}, // Default empty function
-}) => {
-  // Define all possible fields with default empty strings
-  const defaultFields = {
-    validity: "",
-    paymentTerms: "",
-    delivery: "",
-    freight: "",
-    insurance: "",
-    taxes: "",
-  }
-
-  // Merge with actual quotationData to ensure all fields exist
-  const safeQuotationData = { ...defaultFields, ...quotationData }
-
-  // Ensure hiddenFields has all fields with default false
-  const safeHiddenFields = Object.keys(defaultFields).reduce((acc, field) => {
-    acc[field] = hiddenFields[field] || false
-    return acc
-  }, {})
-
+const TermsAndConditions = ({ quotationData, handleInputChange, hiddenFields, toggleFieldVisibility }) => {
   return (
     <div className="bg-white border rounded-lg p-4 shadow-sm">
       <h3 className="text-lg font-medium mb-4">Terms & Conditions</h3>
@@ -45,13 +21,13 @@ const TermsAndConditions = ({
                 onClick={() => toggleFieldVisibility(field)}
                 className="text-xs text-blue-600 hover:text-blue-800"
               >
-                {safeHiddenFields[field] ? "Show" : "Hide"}
+                {hiddenFields[field] ? "Show" : "Hide"}
               </button>
             </div>
-            {!safeHiddenFields[field] && (
+            {!hiddenFields[field] && (
               <input
                 type="text"
-                value={safeQuotationData[field]}
+                value={quotationData[field]}
                 onChange={(e) => handleInputChange(field, e.target.value)}
                 className="w-full p-2 border border-gray-300 rounded-md"
               />
